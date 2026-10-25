@@ -75,7 +75,7 @@ def save_filtered_terms(
     category_safe = category.replace(".", "_")
     os.makedirs(f"{output_dir}/filtered_terms", exist_ok=True)
 
-    with open(f"{output_dir}/filtered_terms/{category_safe}_kept_terms.txt", "w") as f:
+    with open(f"{output_dir}/filtered_terms/{category_safe}_kept.txt","w",encoding="utf-8") as f:
         f.write(f"{filter_type.upper()} Filtering - Terms Kept for {category}\n")
         f.write(f"Total: {len(words_to_keep)} terms\n")
         if upper_threshold:
