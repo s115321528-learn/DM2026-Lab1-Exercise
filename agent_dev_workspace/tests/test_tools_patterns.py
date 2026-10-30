@@ -154,13 +154,31 @@ def test_mine_patterns_invalid_parameters():
     })
     assert "error" in res
 
-    # Missing min_sup for fpgrowth
-    res_no_sup = mine_patterns_tool.invoke({
+    # Default min_sup=10 should be accepted
+    res_default_sup = mine_patterns_tool.invoke({
         "category_name": "catA",
         "filtering_method": "tfidf",
         "algorithm": "fpgrowth"
     })
-    assert "error" in res_no_sup
+    assert "error" not in res_default_sup
+
+    # Invalid min_sup=0 should be rejected
+    res_zero_sup = mine_patterns_tool.invoke({
+        "category_name": "catA",
+        "filtering_method": "tfidf",
+        "algorithm": "fpgrowth",
+        "min_sup": 0
+    })
+    assert "error" in res_zero_sup
+
+    # Negative min_sup should be rejected
+    res_negative_sup = mine_patterns_tool.invoke({
+        "category_name": "catA",
+        "filtering_method": "tfidf",
+        "algorithm": "fpgrowth",
+        "min_sup": -1
+    })
+    assert "error" in res_negative_sup
 
     # Missing k for topk
     res_no_k = mine_patterns_tool.invoke({

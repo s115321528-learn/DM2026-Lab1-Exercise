@@ -18,7 +18,7 @@ def make_tools(session):
         category_name: str,
         filtering_method: Literal["variance", "tfidf", "term_frequency"] = "tfidf",
         algorithm: Literal["fpgrowth", "topk", "maxfpgrowth"] = "fpgrowth",
-        min_sup: Optional[int] = None,
+        min_sup: Optional[int] = 10,
         k: Optional[int] = None,
     ) -> Dict[str, Any]:
         """Mine frequent itemsets/patterns for a specific category using PAMI algorithms.
@@ -118,28 +118,44 @@ def make_tools(session):
         survived_features = feature_names[keep_mask]
         X_survived = X_arr[:, keep_mask]
 
+        # Pre-filter items that cannot satisfy minimum support.
+        # This preserves the frequent itemsets for the same min_sup.
+        if algorithm in ("fpgrowth", "maxfpgrowth"):
+            item_support = np.count_nonzero(X_survived >= 1, axis=0)
+            support_mask = item_support >= min_sup
+        
+            survived_features = survived_features[support_mask]
+            X_survived = X_survived[:, support_mask]
+
         # 3. Check zero terms kept
         if len(survived_features) == 0 or X_survived.shape[1] == 0:
             return _store_empty_result("no terms survived filtering")
 
-        # 4. Build transactional DB DataFrame for PAMI DF2DB
-        tx_df = pd.DataFrame(X_survived, columns=survived_features)
-
+        # 4. Build transactional database with UTF-8 encoding
         import tempfile
         import os
-        import PAMI.extras.convert.DF2DB as db_converter
 
-        with tempfile.NamedTemporaryFile(mode="w+", delete=False, suffix=".txt") as tmp_db:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            newline="\n",
+            delete=False,
+            suffix=".txt",
+        ) as tmp_db:
+
             db_file_path = tmp_db.name
 
-        try:
-            conv = db_converter.DF2DB(tx_df, DFtype="dense")
-            conv.convert2TransactionalDatabase(
-                oFile=db_file_path,
-                condition=">=",
-                thresholdValue=1
-            )
+            for row in X_survived:
+                transaction = [
+                    str(term)
+                    for term, value in zip(survived_features, row)
+                    if value >= 1
+                ]
 
+                if transaction:
+                    tmp_db.write("\t".join(transaction) + "\n")
+
+        try:
             # Mine with requested PAMI algorithm
             if algorithm == "fpgrowth":
                 from PAMI.frequentPattern.basic import FPGrowth
